@@ -37,10 +37,12 @@ namespace EjemploTicopayDll
                     Console.WriteLine("3: Consultar Impuestos ");
                     Console.WriteLine("4: Consultar Servicios ");
                     Console.WriteLine("5: Crear Servicio Ejemplo ");
-                    Console.WriteLine("6: Crear Factura Ejemplo ");
-                    Console.WriteLine("7: Consultar Facturas ");
-                    Console.WriteLine("8: Consultar Facturas Enviadas a Tribunet ");
-                    Console.WriteLine("9: Consultar PDF");
+                    Console.WriteLine("6: Crear Factura de Contado con Cliente Registrado y servicio registrado");
+                    Console.WriteLine("7: Crear Factura de Contado Sin Registrar el Cliente y sin registrar servicios");
+                    Console.WriteLine("8: Crear Factura a Credito con Cliente Registrado");
+                    Console.WriteLine("9: Consultar Facturas del ultimo Mes");
+                    Console.WriteLine("A: Consultar Facturas Enviadas a Tribunet ");
+                    Console.WriteLine("B: Consultar PDF");
                     Console.WriteLine("S: Salir ");
                     Opcion = Console.ReadKey().KeyChar.ToString();
                     if (Opcion.ToUpper().Contains("1"))
@@ -114,18 +116,43 @@ namespace EjemploTicopayDll
                     if (Opcion.ToUpper().Contains("6"))
                     {
                         Console.WriteLine("Ejecutando");
-                        Invoice factura = CrearFactura(token);
+                        Client[] clientes = Metodos_Seccion_Client.ApiClient.BuscarClientes(token);
+                        Tax[] impuestos = Metodos_Seccion_Tax.ApiTax.BuscarImpuestos(token);
+                        CreateInvoice factura = new CreateInvoice();
+                        factura.ClientId = clientes.First().Id;
+                        ItemInvoice lineaFactura = new ItemInvoice();
+                        lineaFactura.Servicio = "Nombre del item a Facturar";
+                        lineaFactura.Cantidad = (decimal) 1.5;
+                        lineaFactura.Precio = (decimal) 1555.50;
+                        lineaFactura.IdService = null;
+                        decimal subTotal = lineaFactura.Cantidad * lineaFactura.Precio;
+                        lineaFactura.IdImpuesto = impuestos.First().Id;
+                        lineaFactura.Descuento = 0;
+                        lineaFactura.Impuesto = (impuestos.First().Rate * subTotal) / 100;
+                        lineaFactura.Total = lineaFactura.Impuesto + subTotal;
+                        lineaFactura.UnidadMedida = UnidadMedidaType.Servicios_Profesionales;
+                        factura.InvoiceLines = new List<ItemInvoice>();
+                        factura.InvoiceLines.Add(lineaFactura);
+                        PaymentInvoce formaPago = new PaymentInvoce();
+                        formaPago.TypePayment = 0;
+                        formaPago.Balance = lineaFactura.Total;
+                        formaPago.Trans = null;
+                        factura.ListPaymentType = new List<PaymentInvoce>();
+                        factura.ListPaymentType.Add(formaPago);
+                        factura.DiscountGeneral = null;
+                        factura.TypeDiscountGeneral = null;
+                        Invoice facturaCreada = Metodos_Seccion_Invoice.ApiInvoice.CrearFactura(token , factura);
                         if (factura != null)
                         {
                             Console.WriteLine("Factura Creada :");
-                            Console.WriteLine(factura.Status + " " + factura.Client.Name);
+                            Console.WriteLine(facturaCreada.Status + " " + facturaCreada.Client.Name);
                         }
                         Console.ReadKey();
                     }
-                    if (Opcion.ToUpper().Contains("7"))
+                    if (Opcion.ToUpper().Contains("9"))
                     {
                         Console.WriteLine("Ejecutando");
-                        Invoice[] facturas = BuscarFacturas(token);
+                        Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);
                         Console.WriteLine(facturas.Length + " encontrados");
                         foreach (Invoice factura in facturas)
                         {
@@ -133,10 +160,10 @@ namespace EjemploTicopayDll
                         }
                         Console.ReadKey();
                     }
-                    if (Opcion.ToUpper().Contains("8"))
+                    if (Opcion.ToUpper().Contains("A"))
                     {
                         Console.WriteLine("Ejecutando");
-                        InvoiceSendTribunet[] reporte = ReporteEstatusFacturasTribunet(token);
+                        InvoiceSendTribunet[] reporte = Metodos_Seccion_Invoice.ApiInvoice.ReporteEstatusFacturasTribunet(token);
                         Console.WriteLine(reporte.Length + " encontrados");
                         foreach (InvoiceSendTribunet factura in reporte)
                         {
@@ -144,10 +171,10 @@ namespace EjemploTicopayDll
                         }
                         Console.ReadKey();
                     }
-                    if (Opcion.ToUpper().Contains("9"))
+                    if (Opcion.ToUpper().Contains("B"))
                     {
                         Console.WriteLine("Ejecutando");
-                        PDF reporte = GetInvoicePDF(token, "f8d073a7-d5f0-45c1-a53c-1fb64344f3df").objectResponse;
+                        PDF reporte = Metodos_Seccion_Invoice.ApiInvoice.GetInvoicePDF(token, "f8d073a7-d5f0-45c1-a53c-1fb64344f3df").objectResponse;
                         Console.WriteLine(reporte.FileName + " encontrado bytes " + reporte.Data.Length);
                         Console.ReadKey();
                     }

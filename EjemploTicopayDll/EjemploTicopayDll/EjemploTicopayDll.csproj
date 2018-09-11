@@ -50,6 +50,7 @@
   <ItemGroup>
     <Compile Include="Metodos Seccion Account\Account.cs" />
     <Compile Include="Metodos Seccion Client\Client.cs" />
+    <Compile Include="Metodos Seccion Invoice\ApiInvoice.cs" />
     <Compile Include="Metodos Seccion Service\ApiService.cs" />
     <Compile Include="Metodos Seccion Tax\ApiTax.cs" />
     <Compile Include="Program.cs" />
@@ -59,8 +60,6 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Metodos Seccion Invoice\" />
-  </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
