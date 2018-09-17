@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TicoPayDll.Clients;
 using TicoPayDll.Invoices;
+using TicoPayDll.Notes;
 using TicoPayDll.Reports;
 using TicoPayDll.Services;
 using TicoPayDll.Taxes;
@@ -41,8 +42,9 @@ namespace EjemploTicopayDll
                     Console.WriteLine("7: Crear Factura de Contado Sin Registrar el Cliente y sin registrar servicios");
                     Console.WriteLine("8: Crear Factura a Credito con Cliente Registrado");
                     Console.WriteLine("9: Consultar Facturas del ultimo Mes");
-                    Console.WriteLine("A: Consultar Facturas Enviadas a Tribunet ");
-                    Console.WriteLine("B: Consultar PDF");
+                    Console.WriteLine("A: Consultar Facturas Enviadas a Tribunet Hacienda");
+                    Console.WriteLine("B: Reversar una factura completa (Mediante una nota de Credito)");
+                    Console.WriteLine("C: Reverso Parcial de items de una factura (Mediante una nota de Credito)");
                     Console.WriteLine("S: Salir ");
                     Opcion = Console.ReadKey().KeyChar.ToString();
                     if (Opcion.ToUpper().Contains("1"))
@@ -273,18 +275,18 @@ namespace EjemploTicopayDll
                     }
                     if (Opcion.ToUpper().Contains("9"))
                     {
-                        Console.WriteLine("Ejecutando");
+                        Console.WriteLine("Ejecutando Consultar Facturas del ultimo Mes");
                         Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);
                         Console.WriteLine(facturas.Length + " encontrados");
                         foreach (Invoice factura in facturas)
                         {
-                            Console.WriteLine(factura.Client.Name + " " + factura.Balance + " " + factura.Status);
+                            Console.WriteLine(factura.ConsecutiveNumber + " " + factura.Balance + " " + factura.Status);
                         }
                         Console.ReadKey();
                     }
                     if (Opcion.ToUpper().Contains("A"))
                     {
-                        Console.WriteLine("Ejecutando");
+                        Console.WriteLine("Ejecutando Consultar Facturas Enviadas a Tribunet");
                         InvoiceSendTribunet[] reporte = Metodos_Seccion_Invoice.ApiInvoice.ReporteEstatusFacturasTribunet(token);
                         Console.WriteLine(reporte.Length + " encontrados");
                         foreach (InvoiceSendTribunet factura in reporte)
@@ -295,10 +297,88 @@ namespace EjemploTicopayDll
                     }
                     if (Opcion.ToUpper().Contains("B"))
                     {
-                        Console.WriteLine("Ejecutando");
-                        PDF reporte = Metodos_Seccion_Invoice.ApiInvoice.GetInvoicePDF(token, "f8d073a7-d5f0-45c1-a53c-1fb64344f3df").objectResponse;
-                        Console.WriteLine(reporte.FileName + " encontrado bytes " + reporte.Data.Length);
+                        Console.WriteLine("Ejecutando Reversar una factura completa (Mediante una nota de Credito)");
+                        Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);                        
+                        //facturas.First().Id;
+                        Console.WriteLine("");
                         Console.ReadKey();
+                    }
+                    if (Opcion.ToUpper().Contains("C"))
+                    {
+                        Console.WriteLine("Ejecutando Reversar una factura completa (Mediante una nota de Credito)");
+                        Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);
+                        Invoice facturaAReversarParcialmente = facturas.Where(f => f.InvoiceLines.Count >= 2).FirstOrDefault();
+                        // Creamos una nueva nota de credito
+                        CompleteNote notaACrear = new CompleteNote();
+                        // Identificamos a que factura o tiquete se le esta aplicando la nota
+                        notaACrear.InvoiceId = Guid.Parse(facturaAReversarParcialmente.Id);
+                        notaACrear.NumberInvoiceRef = facturaAReversarParcialmente.ConsecutiveNumber;
+                        notaACrear.ExternalReferenceNumber = "N/A"; // Numero de referencia externo usando por su sistema
+                        // Rellenamos los datos principales de la nota (Basados en la factura que vamos a reversar)                        
+                        notaACrear.CodigoMoneda = facturaAReversarParcialmente.CodigoMoneda; // Moneda de la nota
+                        notaACrear.NoteType = NoteType.Crédito; // Tipo de nota                        
+                        notaACrear.NoteReasons = NoteReason.Corregir_Monto_Factura; // Motivo de la nota
+                        notaACrear.TipoFirma = facturaAReversarParcialmente.TipoFirma; // Tipo de firma
+                        notaACrear.IsNoteReceptionConfirmed = false;
+                        notaACrear.NoteReasonsOthers = null;                        
+                        notaACrear.DueDate = DateTime.UtcNow;
+                        notaACrear.Status = Status.Completed;
+                        notaACrear.ConditionSaleType = TicoPayDll.Notes.FacturaElectronicaCondicionVenta.Otros;
+                        notaACrear.CreditTerm = 0;
+                        // Inicializamos el objeto para las lineas de la nota
+                        notaACrear.NotesLines = new List<NoteLineDto>();
+                        NoteLineDto lineaNotaDetalle = new NoteLineDto();
+                        int numeroLinea = 1;
+                        // Para el ejemplo solo tomamos la primera linea de la factura para realizar la devolucion
+                        lineaNotaDetalle.PricePerUnit = facturaAReversarParcialmente.InvoiceLines[0].PricePerUnit; // Precio del item
+                        lineaNotaDetalle.SubTotal = facturaAReversarParcialmente.InvoiceLines[0].SubTotal; // Sub total del item
+                        lineaNotaDetalle.LineTotal = facturaAReversarParcialmente.InvoiceLines[0].LineTotal; // Sub total de linea
+                        lineaNotaDetalle.TaxId = facturaAReversarParcialmente.InvoiceLines[0].TaxId; // Id del impuesto de la linea
+                        lineaNotaDetalle.TaxAmount = facturaAReversarParcialmente.InvoiceLines[0].TaxAmount; // Monto del impuesto de la linea
+                        lineaNotaDetalle.Total = facturaAReversarParcialmente.InvoiceLines[0].Total; // Total de la linea
+                        lineaNotaDetalle.Note = facturaAReversarParcialmente.InvoiceLines[0].Note; // nota descriptiva de la linea
+                        lineaNotaDetalle.Title = facturaAReversarParcialmente.InvoiceLines[0].Title; // Nombre del item de la linea
+                        lineaNotaDetalle.Quantity = facturaAReversarParcialmente.InvoiceLines[0].Quantity; // Cantidad de items de la linea
+                        lineaNotaDetalle.LineType = facturaAReversarParcialmente.InvoiceLines[0].LineType; // Tipo de linea
+                        // Si la linea esta basada en un producto o servicio registrado se guarda el id del mismo
+                        if (facturaAReversarParcialmente.InvoiceLines[0].ProductId != null)
+                        {
+                            lineaNotaDetalle.ProductId = facturaAReversarParcialmente.InvoiceLines[0].ProductId;
+                        }
+                        if (facturaAReversarParcialmente.InvoiceLines[0].ServiceId != null)
+                        {
+                            lineaNotaDetalle.ServiceId = facturaAReversarParcialmente.InvoiceLines[0].ServiceId;
+                        }
+                        lineaNotaDetalle.LineNumber = numeroLinea; // Numero de linea
+                        lineaNotaDetalle.DescriptionDiscount = null; 
+                        lineaNotaDetalle.ExonerationId = null;
+                        lineaNotaDetalle.UnitMeasurement = facturaAReversarParcialmente.InvoiceLines[0].UnitMeasurement; // Unidad de medida de la linea
+                        if (facturaAReversarParcialmente.InvoiceLines[0].UnitMeasurementOthers != null)
+                        {
+                            lineaNotaDetalle.UnitMeasurementOthers = facturaAReversarParcialmente.InvoiceLines[0].UnitMeasurementOthers;
+                        }
+                        else
+                        {
+                            lineaNotaDetalle.UnitMeasurementOthers = null;
+                        }
+                        // Calculamos los totales de la nota
+                        notaACrear.Amount = lineaNotaDetalle.SubTotal;
+                        notaACrear.TaxAmount = lineaNotaDetalle.TaxAmount;
+                        notaACrear.DiscountAmount = 0;
+                        notaACrear.Total = lineaNotaDetalle.Total;
+                        notaACrear.NotesLines.Add(lineaNotaDetalle);
+                        CompleteNote notaCreada = Metodos_Seccion_Invoice.ApiNotes.CrearNote(token, notaACrear);
+                        if (notaCreada != null)
+                        {
+                            Console.WriteLine("Nota Parcial Creada :");
+                            Console.WriteLine(notaCreada.Status + " " + notaCreada.ConsecutiveNumber);
+                        }
+                        Console.WriteLine("");
+                        Console.ReadKey();
+                    }
+                    if (Opcion.ToUpper().Contains("S"))
+                    {
+                        Ejecutando = false;
                     }
                 }
                 Console.WriteLine("Hasta luego ");
