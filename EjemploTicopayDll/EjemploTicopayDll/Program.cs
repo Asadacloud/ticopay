@@ -298,9 +298,14 @@ namespace EjemploTicopayDll
                     if (Opcion.ToUpper().Contains("B"))
                     {
                         Console.WriteLine("Ejecutando Reversar una factura completa (Mediante una nota de Credito)");
-                        Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);                        
-                        //facturas.First().Id;
-                        Console.WriteLine("");
+                        Invoice[] facturas = Metodos_Seccion_Invoice.ApiInvoice.BuscarFacturas(token);
+                        CompleteNote nota = Metodos_Seccion_Invoice.ApiNotes.ReversarFacturaOTiquete(token, facturas.First().Id, "N/A");
+                        if(nota != null)
+                        {
+                            Console.WriteLine("Factura Reversada :");
+                            // El Api retorna la nota de credito Creada en Ticopay
+                            Console.WriteLine(nota.Status + " " + nota.ConsecutiveNumber);
+                        }
                         Console.ReadKey();
                     }
                     if (Opcion.ToUpper().Contains("C"))
