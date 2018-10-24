@@ -43,8 +43,8 @@
     <Reference Include="System.Data" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
-    <Reference Include="TicoPayDll, Version=1.0.0.19, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\TicoPayDll.1.0.0.19\lib\netstandard2.0\TicoPayDll.dll</HintPath>
+    <Reference Include="TicoPayDll, Version=1.0.0.20, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\TicoPayDll.1.0.0.21\lib\netstandard2.0\TicoPayDll.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
